@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from openpyxl import Workbook
 from openpyxl.styles import Font
 import io
@@ -153,3 +154,4 @@ if __name__ == '__main__':
         db.create_all()  
         port = int(os.environ.get("PORT", 5000))  
         app.run(host="0.0.0.0", port=port)
+
