@@ -16,6 +16,9 @@ app.config['SECRET_KEY'] = 'secret'
 db = SQLAlchemy(app)
 
 class CD(db.Model):
+    __tablename__ = 'cd'
+    __table_args__ = {'schema': 'cadastro_cds'}
+    
     id = db.Column(db.Integer, primary_key=True)
     artista = db.Column(db.String(100), nullable=False)
     album = db.Column(db.String(100), nullable=False)
@@ -154,4 +157,5 @@ if __name__ == '__main__':
         db.create_all()  
         port = int(os.environ.get("PORT", 5000))  
         app.run(host="0.0.0.0", port=port)
+
 
