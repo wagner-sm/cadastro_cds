@@ -6,8 +6,11 @@ def enviar_mensagem_telegram(mensagem):
     token = os.environ.get('TELEGRAM_BOT_TOKEN')
     chat_id = os.environ.get('TELEGRAM_CHAT_ID')
     
+    print(f"Token configurado: {'Sim' if token else 'Não'}")
+    print(f"Chat ID configurado: {'Sim' if chat_id else 'Não'}")
+    
     if not token or not chat_id:
-        print("Token ou Chat ID do Telegram não configurados")
+        print("⚠️ Token ou Chat ID do Telegram não configurados")
         return False
     
     url = f"https://api.telegram.org/bot{token}/sendMessage"
@@ -18,8 +21,32 @@ def enviar_mensagem_telegram(mensagem):
     }
     
     try:
+        print(f"Enviando mensagem para o Telegram...")
         response = requests.post(url, data=dados)
-        return response.json().get('ok', False)
+        resultado = response.json()
+        print(f"Resposta do Telegram: {resultado}")
+        
+        if resultado.get('ok'):
+            print("✅ Mensagem enviada com sucesso!")
+            return True
+        else:
+            print(f"❌ Erro do Telegram: {resultado.get('description')}")
+            return False
     except Exception as e:
-        print(f"Erro ao enviar mensagem: {e}")
+        print(f"❌ Erro ao enviar mensagem: {e}")
         return False
+```
+
+**2. Verifique as variáveis de ambiente no Render:**
+
+No painel do Render, vá em **Environment** e confirme que você tem:
+- `TELEGRAM_BOT_TOKEN` = (o token que o BotFather te deu)
+- `TELEGRAM_CHAT_ID` = (o ID do chat)
+
+**3. Como pegar o CHAT_ID corretamente:**
+
+1. Inicie uma conversa com seu bot no Telegram
+2. Envie qualquer mensagem para ele
+3. Acesse esta URL no navegador (substitua `<SEU_TOKEN>`):
+```
+   https://api.telegram.org/bot<SEU_TOKEN>/getUpdates
