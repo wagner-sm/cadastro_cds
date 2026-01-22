@@ -93,7 +93,7 @@ def add_cd():
 📀 Artista: {artista}
 💿 Álbum: {album}
 📝 Descrição: {descricao}
-💰 Preço: R$ {preco_formatado}
+💰 Preço: {preco_formatado}
 📦 Quantidade: {quantidade}
             """
             enviar_mensagem_telegram(mensagem)
@@ -144,7 +144,7 @@ def edit_cd(cd_id):
 💿 Álbum: {album}
 📝 Descrição: {descricao}
 {emoji} Estoque: {quantidade_anterior} → {quantidade} ({diferenca:+d})
-💰 Preço: R$ {preco_formatado}
+💰 Preço: {preco_formatado}
             """
             enviar_mensagem_telegram(mensagem)
 
