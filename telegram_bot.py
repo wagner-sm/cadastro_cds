@@ -35,18 +35,3 @@ def enviar_mensagem_telegram(mensagem):
     except Exception as e:
         print(f"❌ Erro ao enviar mensagem: {e}")
         return False
-```
-
-**2. Verifique as variáveis de ambiente no Render:**
-
-No painel do Render, vá em **Environment** e confirme que você tem:
-- `TELEGRAM_BOT_TOKEN` = (o token que o BotFather te deu)
-- `TELEGRAM_CHAT_ID` = (o ID do chat)
-
-**3. Como pegar o CHAT_ID corretamente:**
-
-1. Inicie uma conversa com seu bot no Telegram
-2. Envie qualquer mensagem para ele
-3. Acesse esta URL no navegador (substitua `<SEU_TOKEN>`):
-```
-   https://api.telegram.org/bot<SEU_TOKEN>/getUpdates
