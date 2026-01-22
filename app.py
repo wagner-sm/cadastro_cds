@@ -8,6 +8,7 @@ import io
 from flask import send_file
 import os
 from utils import *
+from telegram_bot import enviar_mensagem_telegram
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ['DATABASE_URL']  
@@ -82,6 +83,18 @@ def add_cd():
             cd = CD(artista=artista, album=album, descricao=descricao, preco=float(preco), quantidade=int(quantidade))
             db.session.add(cd)
             db.session.commit()
+
+            # Enviar notificação
+            mensagem = f"""
+🆕 <b>NOVO CD CADASTRADO</b>
+📀 Artista: {artista}
+💿 Álbum: {album}
+📝 Descrição: {descricao}
+💰 Preço: R$ {preco}
+📦 Quantidade: {quantidade}
+            """
+            enviar_mensagem_telegram(mensagem)
+            
             return redirect(url_for('index'))
         except Exception as e:
             flash('Erro ao adicionar CD: ' + str(e))
@@ -107,12 +120,28 @@ def edit_cd(cd_id):
             flash('Já existe um CD com esse artista, álbum e descrição.')
             return render_template('form.html', cd=cd)
         try:
+            quantidade_anterior = cd.quantidade
             cd.artista = artista
             cd.album = album
             cd.descricao = descricao
             cd.preco = float(preco)
             cd.quantidade = int(quantidade)
             db.session.commit()
+
+            # Notificação de alteração
+            diferenca = int(quantidade) - quantidade_anterior
+            emoji = "📈" if diferenca > 0 else "📉"
+            
+            mensagem = f"""
+✏️ <b>CD ATUALIZADO</b>
+📀 Artista: {artista}
+💿 Álbum: {album}
+📝 Descrição: {descricao}
+{emoji} Estoque: {quantidade_anterior} → {quantidade} ({diferenca:+d})
+💰 Preço: R$ {preco}
+            """
+            enviar_mensagem_telegram(mensagem)
+
             return redirect(url_for('index'))
         except IntegrityError:
             db.session.rollback()
@@ -126,8 +155,17 @@ def edit_cd(cd_id):
 @app.route('/delete/<int:cd_id>')
 def delete_cd(cd_id):
     cd = CD.query.get_or_404(cd_id)
+    info = f"{cd.artista} - {cd.album} - {cd.descricao}"
     db.session.delete(cd)
     db.session.commit()
+
+    # Notificação de exclusão
+    mensagem = f"""
+🗑️ <b>CD REMOVIDO</b>
+📀 {info}
+    """
+    enviar_mensagem_telegram(mensagem)
+
     return redirect(url_for('index'))
 
 @app.route('/exportar_produtos_xlsx')
