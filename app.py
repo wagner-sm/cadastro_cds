@@ -84,13 +84,16 @@ def add_cd():
             db.session.add(cd)
             db.session.commit()
 
+            # Formatar preço para a mensagem
+            preco_formatado = f"R$ {float(preco):,.2f}".replace(',', '_').replace('.', ',').replace('_', '.')
+
             # Enviar notificação
             mensagem = f"""
 🆕 <b>NOVO CD CADASTRADO</b>
 📀 Artista: {artista}
 💿 Álbum: {album}
 📝 Descrição: {descricao}
-💰 Preço: R$ {preco}
+💰 Preço: R$ {preco_formatado}
 📦 Quantidade: {quantidade}
             """
             enviar_mensagem_telegram(mensagem)
@@ -128,6 +131,9 @@ def edit_cd(cd_id):
             cd.quantidade = int(quantidade)
             db.session.commit()
 
+            # Formatar preço para a mensagem
+            preco_formatado = f"R$ {float(preco):,.2f}".replace(',', '_').replace('.', ',').replace('_', '.')
+
             # Notificação de alteração
             diferenca = int(quantidade) - quantidade_anterior
             emoji = "📈" if diferenca > 0 else "📉"
@@ -138,7 +144,7 @@ def edit_cd(cd_id):
 💿 Álbum: {album}
 📝 Descrição: {descricao}
 {emoji} Estoque: {quantidade_anterior} → {quantidade} ({diferenca:+d})
-💰 Preço: R$ {preco}
+💰 Preço: R$ {preco_formatado}
             """
             enviar_mensagem_telegram(mensagem)
 
@@ -196,6 +202,3 @@ if __name__ == '__main__':
         db.create_all()  
         port = int(os.environ.get("PORT", 5000))  
         app.run(host="0.0.0.0", port=port)
-
-
-
