@@ -167,6 +167,3 @@ def exportar_produtos_xlsx():
         download_name="registros.xlsx",
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
-
-
-
