@@ -8,7 +8,6 @@ import io
 from flask import send_file
 import os
 from utils import *
-from telegram_bot import enviar_mensagem_telegram
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ['DATABASE_URL']  
@@ -86,17 +85,6 @@ def add_cd():
 
             # Formatar preço para a mensagem
             preco_formatado = f"R$ {float(preco):,.2f}".replace(',', '_').replace('.', ',').replace('_', '.')
-
-            # Enviar notificação
-            mensagem = f"""
-🆕 <b>NOVO CD CADASTRADO</b>
-📀 Artista: {artista}
-💿 Álbum: {album}
-📝 Descrição: {descricao}
-💰 Preço: {preco_formatado}
-📦 Quantidade: {quantidade}
-            """
-            enviar_mensagem_telegram(mensagem)
             
             return redirect(url_for('index'))
         except Exception as e:
@@ -131,23 +119,6 @@ def edit_cd(cd_id):
             cd.quantidade = int(quantidade)
             db.session.commit()
 
-            # Formatar preço para a mensagem
-            preco_formatado = f"R$ {float(preco):,.2f}".replace(',', '_').replace('.', ',').replace('_', '.')
-
-            # Notificação de alteração
-            diferenca = int(quantidade) - quantidade_anterior
-            emoji = "📈" if diferenca > 0 else "📉"
-            
-            mensagem = f"""
-✏️ <b>CD ATUALIZADO</b>
-📀 Artista: {artista}
-💿 Álbum: {album}
-📝 Descrição: {descricao}
-{emoji} Estoque: {quantidade_anterior} → {quantidade} ({diferenca:+d})
-💰 Preço: {preco_formatado}
-            """
-            enviar_mensagem_telegram(mensagem)
-
             return redirect(url_for('index'))
         except IntegrityError:
             db.session.rollback()
@@ -164,13 +135,6 @@ def delete_cd(cd_id):
     info = f"{cd.artista} - {cd.album} - {cd.descricao}"
     db.session.delete(cd)
     db.session.commit()
-
-    # Notificação de exclusão
-    mensagem = f"""
-🗑️ <b>CD REMOVIDO</b>
-📀 {info}
-    """
-    enviar_mensagem_telegram(mensagem)
 
     return redirect(url_for('index'))
 
