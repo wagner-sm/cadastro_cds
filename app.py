@@ -10,6 +10,38 @@ from utils import tratar
 
 load_dotenv()
 
+
+def parse_preco(valor):
+    """
+    Converte um preço digitado pelo usuário (aceita tanto vírgula quanto ponto
+    como separador decimal, e ponto como separador de milhar) para float.
+    Exemplos aceitos: "10,50" | "10.50" | "1.234,56" | "1234.56" | "1234,5"
+    """
+    if valor is None:
+        raise ValueError("Preço vazio.")
+
+    s = str(valor).strip()
+    if not s:
+        raise ValueError("Preço vazio.")
+
+    # remove "R$" e espaços, caso venha nesse formato
+    s = s.replace('R$', '').strip()
+
+    if ',' in s and '.' in s:
+        # formato "1.234,56" -> ponto é milhar, vírgula é decimal
+        s = s.replace('.', '').replace(',', '.')
+    elif ',' in s:
+        # formato "10,50" -> vírgula é decimal
+        s = s.replace(',', '.')
+    # se só tem ponto, já está no formato que float() entende
+
+    return float(s)
+
+
+def formatar_preco(valor):
+    """Formata um float como string no padrão brasileiro: 1234.5 -> '1234,50'"""
+    return f"{float(valor):.2f}".replace('.', ',')
+
 app = Flask(__name__)
 supabase_url = os.environ.get("SUPABASE_URL")
 supabase_key = os.environ.get("SUPABASE_KEY")
@@ -105,11 +137,17 @@ def add_cd():
             return render_template('form.html', cd=None)
 
         try:
+            preco_convertido = parse_preco(preco)
+        except ValueError:
+            flash('Preço inválido. Use um formato como 10,50 ou 10.50.')
+            return render_template('form.html', cd=None)
+
+        try:
             TABLE.table('albuns').insert({
                 'artista': artista,
                 'album': album,
                 'descricao': descricao,
-                'preco': float(preco),
+                'preco': preco_convertido,
                 'quantidade': int(quantidade)
             }).execute()
             return redirect(url_for('index'))
@@ -145,16 +183,26 @@ def edit_cd(cd_id):
             return render_template('form.html', cd=cd)
 
         try:
+            preco_convertido = parse_preco(preco)
+        except ValueError:
+            flash('Preço inválido. Use um formato como 10,50 ou 10.50.')
+            return render_template('form.html', cd=cd)
+
+        try:
             TABLE.table('albuns').update({
                 'artista': artista,
                 'album': album,
                 'descricao': descricao,
-                'preco': float(preco),
+                'preco': preco_convertido,
                 'quantidade': int(quantidade)
             }).eq('id', cd_id).execute()
             return redirect(url_for('index'))
         except Exception as e:
             flash('Erro ao editar CD: ' + str(e))
+
+    # exibe o preço já no formato brasileiro (com vírgula) ao carregar o form
+    if cd:
+        cd.preco = formatar_preco(cd.preco)
 
     return render_template('form.html', cd=cd)
 
