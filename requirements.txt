@@ -1,6 +1,5 @@
 Flask
-Flask-SQLAlchemy
-SQLAlchemy
 openpyxl
-psycopg2-binary
 gunicorn
+python-dotenv
+supabase
