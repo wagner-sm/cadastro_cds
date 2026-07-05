@@ -23,9 +23,9 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
 }
 db = SQLAlchemy(app)
 
-class CD(db.Model):
-    __tablename__ = 'cd'
-    __table_args__ = {'schema': 'cadastro_cds'}
+class albuns(db.Model):
+    __tablename__ = 'albuns'
+    __table_args__ = {'schema': 'cadastro_albuns'}
     
     id = db.Column(db.Integer, primary_key=True)
     artista = db.Column(db.String(100), nullable=False)
@@ -35,8 +35,8 @@ class CD(db.Model):
     quantidade = db.Column(db.Integer, nullable=False)
 
     __table_args__ = (
-        db.UniqueConstraint('artista', 'album', 'descricao', name='unique_cd'),
-        {'schema': 'cadastro_cds'}
+        db.UniqueConstraint('artista', 'album', 'descricao', name='unique_albuns'),
+        {'schema': 'cadastro_albuns'}
     )
 
 
@@ -54,14 +54,14 @@ def index():
     direction = request.args.get('direction', 'desc')  
 
     # Construir a query base
-    query = CD.query  
+    query = albuns.query  
     
     # Aplicar filtro de busca
     if busca:  
-        query = query.filter(func.lower(CD.artista).contains(busca.lower()))  
+        query = query.filter(func.lower(albuns.artista).contains(busca.lower()))  
 
     # Aplicar ordenação
-    sort_column = getattr(CD, sort, CD.id)  
+    sort_column = getattr(albuns, sort, albuns.id)  
     if direction == 'desc':  
         sort_column = sort_column.desc()  
     else:  
@@ -69,12 +69,12 @@ def index():
     query = query.order_by(sort_column)  
 
     # ✅ USAR APENAS .paginate() - remove o resto
-    cds = query.paginate(page=page, per_page=per_page, error_out=False)
+    albunss = query.paginate(page=page, per_page=per_page, error_out=False)
 
-    return render_template('index.html', cds=cds, request=request, sort=sort, direction=direction, busca=busca)
+    return render_template('index.html', albunss=albunss, request=request, sort=sort, direction=direction, busca=busca)
 
 @app.route('/add', methods=['GET', 'POST'])
-def add_cd():
+def add_albuns():
     if request.method == 'POST':
         artista = tratar(request.form['artista'])
         album = tratar(request.form['album'])
@@ -82,13 +82,13 @@ def add_cd():
         preco = request.form['preco']
         quantidade = request.form['quantidade']
         # Validação de unicidade (case insensitive)
-        exists = CD.query.filter(CD.artista == artista, CD.album == album, CD.descricao == descricao).first()
+        exists = albuns.query.filter(albuns.artista == artista, albuns.album == album, albuns.descricao == descricao).first()
         if exists:
-            flash('Já existe um CD com esse artista, álbum e descrição.')
-            return render_template('form.html', cd=None)
+            flash('Já existe um registro com esse artista, álbum e descrição.')
+            return render_template('form.html', albuns=None)
         try:
-            cd = CD(artista=artista, album=album, descricao=descricao, preco=float(preco), quantidade=int(quantidade))
-            db.session.add(cd)
+            albuns = albuns(artista=artista, album=album, descricao=descricao, preco=float(preco), quantidade=int(quantidade))
+            db.session.add(albuns)
             db.session.commit()
 
             # Formatar preço para a mensagem
@@ -96,12 +96,12 @@ def add_cd():
             
             return redirect(url_for('index'))
         except Exception as e:
-            flash('Erro ao adicionar CD: ' + str(e))
-    return render_template('form.html', cd=None)
+            flash('Erro ao adicionar albuns: ' + str(e))
+    return render_template('form.html', albuns=None)
 
-@app.route('/edit/<int:cd_id>', methods=['GET', 'POST'])
-def edit_cd(cd_id):
-    cd = CD.query.get_or_404(cd_id)
+@app.route('/edit/<int:albuns_id>', methods=['GET', 'POST'])
+def edit_albuns(albuns_id):
+    albuns = albuns.query.get_or_404(albuns_id)
     if request.method == 'POST':
         artista = tratar(request.form['artista'])
         album = tratar(request.form['album'])
@@ -109,49 +109,49 @@ def edit_cd(cd_id):
         preco = request.form['preco']
         quantidade = request.form['quantidade']
         # Validação de unicidade (case insensitive), exceto o próprio registro
-        exists = CD.query.filter(
-            func.lower(CD.artista) == artista.lower(),
-            func.lower(CD.album) == album.lower(),
-            func.lower(CD.descricao) == descricao.lower(),
-            CD.id != cd_id
+        exists = albuns.query.filter(
+            func.lower(albuns.artista) == artista.lower(),
+            func.lower(albuns.album) == album.lower(),
+            func.lower(albuns.descricao) == descricao.lower(),
+            albuns.id != albuns_id
         ).first()
         if exists:
-            flash('Já existe um CD com esse artista, álbum e descrição.')
-            return render_template('form.html', cd=cd)
+            flash('Já existe um registro com esse artista, álbum e descrição.')
+            return render_template('form.html', albuns=albuns)
         try:
-            quantidade_anterior = cd.quantidade
-            cd.artista = artista
-            cd.album = album
-            cd.descricao = descricao
-            cd.preco = float(preco)
-            cd.quantidade = int(quantidade)
+            quantidade_anterior = albuns.quantidade
+            albuns.artista = artista
+            albuns.album = album
+            albuns.descricao = descricao
+            albuns.preco = float(preco)
+            albuns.quantidade = int(quantidade)
             db.session.commit()
 
             return redirect(url_for('index'))
         except IntegrityError:
             db.session.rollback()
-            flash('Já existe um CD com esse artista, álbum e descrição.')
-            return render_template('form.html', cd=cd)
+            flash('Já existe um registro com esse artista, álbum e descrição.')
+            return render_template('form.html', albuns=albuns)
         except Exception as e:
-            flash('Erro ao editar CD: ' + str(e))
-            return render_template('form.html', cd=cd)
-    return render_template('form.html', cd=cd)
+            flash('Erro ao editar albuns: ' + str(e))
+            return render_template('form.html', albuns=albuns)
+    return render_template('form.html', albuns=albuns)
 
-@app.route('/delete/<int:cd_id>')
-def delete_cd(cd_id):
-    cd = CD.query.get_or_404(cd_id)
-    info = f"{cd.artista} - {cd.album} - {cd.descricao}"
-    db.session.delete(cd)
+@app.route('/delete/<int:albuns_id>')
+def delete_albuns(albuns_id):
+    albuns = albuns.query.get_or_404(albuns_id)
+    info = f"{albuns.artista} - {albuns.album} - {albuns.descricao}"
+    db.session.delete(albuns)
     db.session.commit()
 
     return redirect(url_for('index'))
 
 @app.route('/exportar_produtos_xlsx')
 def exportar_produtos_xlsx():
-    items = CD.query.all()    
+    items = albuns.query.all()    
     wb = Workbook()
     ws = wb.active
-    ws.title = "CDS"
+    ws.title = "albunsS"
     ws.append(['Artista', 'Album', 'Descrição', 'Preço', 'Quantidade'])
     for cell in ws[1]:  
         cell.font = Font(bold=True) 
