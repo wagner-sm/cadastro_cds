@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 # Colunas que podem ser usadas para ordenação na listagem (evita passar
 # valores arbitrários vindos da URL direto para a query do Supabase)
-COLUNAS_ORDENACAO_PERMITIDAS = {'id', 'artista', 'album', 'preco', 'quantidade'}
+COLUNAS_ORDENACAO_PERMITIDAS = {'artista', 'album', 'preco', 'quantidade'}
 
 
 def parse_preco(valor):
