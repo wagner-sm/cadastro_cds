@@ -5,10 +5,19 @@ from openpyxl.styles import Font
 import io
 from flask import send_file
 import os
+import logging
+from types import SimpleNamespace
 from dotenv import load_dotenv
 from utils import tratar
 
 load_dotenv()
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Colunas que podem ser usadas para ordenação na listagem (evita passar
+# valores arbitrários vindos da URL direto para a query do Supabase)
+COLUNAS_ORDENACAO_PERMITIDAS = {'id', 'artista', 'album', 'preco', 'quantidade'}
 
 
 def parse_preco(valor):
@@ -42,6 +51,56 @@ def formatar_preco(valor):
     """Formata um float como string no padrão brasileiro: 1234.5 -> '1234,50'"""
     return f"{float(valor):.2f}".replace('.', ',')
 
+def validar_e_processar_form(form, cd_id=None):
+    """
+    Valida e converte os dados vindos do formulário de CD.
+
+    Retorna uma tupla (dados, erro):
+    - dados: dict pronto para insert/update no Supabase (ou None se houve erro)
+    - erro: mensagem de erro para exibir via flash (ou None se tudo ok)
+
+    cd_id: quando informado (edição), exclui o próprio registro da checagem
+    de duplicidade.
+    """
+    artista = tratar(form['artista'])
+    album = tratar(form['album'])
+    descricao = tratar(form['descricao'])
+
+    query = TABLE.table('albuns').select('*') \
+        .ilike('artista', artista) \
+        .ilike('album', album) \
+        .ilike('descricao', descricao)
+    if cd_id is not None:
+        query = query.neq('id', cd_id)
+
+    if query.execute().data:
+        return None, 'Já existe um registro com esse artista, álbum e descrição.'
+
+    try:
+        preco_convertido = parse_preco(form['preco'])
+    except ValueError:
+        return None, 'Preço inválido. Use um formato como 10,50 ou 10.50.'
+
+    if preco_convertido <= 0:
+        return None, 'O preço deve ser maior que zero.'
+
+    try:
+        quantidade_convertida = int(form['quantidade'])
+    except ValueError:
+        return None, 'Quantidade inválida.'
+
+    if quantidade_convertida <= 0:
+        return None, 'A quantidade deve ser maior que zero.'
+
+    return {
+        'artista': artista,
+        'album': album,
+        'descricao': descricao,
+        'preco': preco_convertido,
+        'quantidade': quantidade_convertida
+    }, None
+
+
 app = Flask(__name__)
 supabase_url = os.environ.get("SUPABASE_URL")
 supabase_key = os.environ.get("SUPABASE_KEY")
@@ -67,6 +126,8 @@ def index():
     per_page = 10
     busca = request.args.get('busca', '')
     sort = request.args.get('sort', 'id')
+    if sort not in COLUNAS_ORDENACAO_PERMITIDAS:
+        sort = 'id'
     direction = request.args.get('direction', 'desc')
 
     start = (page - 1) * per_page
@@ -88,7 +149,7 @@ def index():
     total_pages = (total + per_page - 1) // per_page if total > 0 else 1
 
     # converte dict para objeto (template usa cd.artista)
-    item_objects = [type('CD', (), item) for item in items]
+    item_objects = [SimpleNamespace(**item) for item in items]
 
     class Pagination:
         def __init__(self):
@@ -120,39 +181,18 @@ def index():
 @app.route('/add', methods=['GET', 'POST'])
 def add_cd():
     if request.method == 'POST':
-        artista = tratar(request.form['artista'])
-        album = tratar(request.form['album'])
-        descricao = tratar(request.form['descricao'])
-        preco = request.form['preco']
-        quantidade = request.form['quantidade']
+        dados, erro = validar_e_processar_form(request.form)
 
-        exists = TABLE.table('albuns').select('*') \
-            .ilike('artista', artista) \
-            .ilike('album', album) \
-            .ilike('descricao', descricao) \
-            .execute()
-
-        if exists.data:
-            flash('Já existe um registro com esse artista, álbum e descrição.')
+        if erro:
+            flash(erro)
             return render_template('form.html', cd=None)
 
         try:
-            preco_convertido = parse_preco(preco)
-        except ValueError:
-            flash('Preço inválido. Use um formato como 10,50 ou 10.50.')
-            return render_template('form.html', cd=None)
-
-        try:
-            TABLE.table('albuns').insert({
-                'artista': artista,
-                'album': album,
-                'descricao': descricao,
-                'preco': preco_convertido,
-                'quantidade': int(quantidade)
-            }).execute()
+            TABLE.table('albuns').insert(dados).execute()
             return redirect(url_for('index'))
-        except Exception as e:
-            flash('Erro ao adicionar CD: ' + str(e))
+        except Exception:
+            logger.exception('Erro ao adicionar CD')
+            flash('Erro ao adicionar CD. Tente novamente.')
 
     return render_template('form.html', cd=None)
 
@@ -160,45 +200,23 @@ def add_cd():
 @app.route('/edit/<int:cd_id>', methods=['GET', 'POST'])
 def edit_cd(cd_id):
     result = TABLE.table('albuns').select('*').eq('id', cd_id).execute()
-    cd = type('CD', (), result.data[0]) if result.data else None
+    cd = SimpleNamespace(**result.data[0]) if result.data else None
     if not cd:
         return 'Not found', 404
 
     if request.method == 'POST':
-        artista = tratar(request.form['artista'])
-        album = tratar(request.form['album'])
-        descricao = tratar(request.form['descricao'])
-        preco = request.form['preco']
-        quantidade = request.form['quantidade']
+        dados, erro = validar_e_processar_form(request.form, cd_id=cd_id)
 
-        exists = TABLE.table('albuns').select('*') \
-            .ilike('artista', artista) \
-            .ilike('album', album) \
-            .ilike('descricao', descricao) \
-            .neq('id', cd_id) \
-            .execute()
-
-        if exists.data:
-            flash('Já existe um registro com esse artista, álbum e descrição.')
+        if erro:
+            flash(erro)
             return render_template('form.html', cd=cd)
 
         try:
-            preco_convertido = parse_preco(preco)
-        except ValueError:
-            flash('Preço inválido. Use um formato como 10,50 ou 10.50.')
-            return render_template('form.html', cd=cd)
-
-        try:
-            TABLE.table('albuns').update({
-                'artista': artista,
-                'album': album,
-                'descricao': descricao,
-                'preco': preco_convertido,
-                'quantidade': int(quantidade)
-            }).eq('id', cd_id).execute()
+            TABLE.table('albuns').update(dados).eq('id', cd_id).execute()
             return redirect(url_for('index'))
-        except Exception as e:
-            flash('Erro ao editar CD: ' + str(e))
+        except Exception:
+            logger.exception('Erro ao editar CD %s', cd_id)
+            flash('Erro ao editar CD. Tente novamente.')
 
     # exibe o preço já no formato brasileiro (com vírgula) ao carregar o form
     if cd:
@@ -207,9 +225,13 @@ def edit_cd(cd_id):
     return render_template('form.html', cd=cd)
 
 
-@app.route('/delete/<int:cd_id>')
+@app.route('/delete/<int:cd_id>', methods=['POST'])
 def delete_cd(cd_id):
-    TABLE.table('albuns').delete().eq('id', cd_id).execute()
+    try:
+        TABLE.table('albuns').delete().eq('id', cd_id).execute()
+    except Exception:
+        logger.exception('Erro ao excluir CD %s', cd_id)
+        flash('Erro ao excluir CD. Tente novamente.')
     return redirect(url_for('index'))
 
 
@@ -224,8 +246,14 @@ def exportar_produtos_xlsx():
     for cell in ws[1]:
         cell.font = Font(bold=True)
     for i in items:
-        preco_formatado = f"R$ {i['preco']:,.2f}".replace('.', ',')
-        ws.append([i['artista'], i['album'], i['descricao'], preco_formatado, i['quantidade']])
+        preco_formatado = f"R$ {(i.get('preco') or 0):,.2f}".replace('.', ',')
+        ws.append([
+            i.get('artista', ''),
+            i.get('album', ''),
+            i.get('descricao', ''),
+            preco_formatado,
+            i.get('quantidade', 0)
+        ])
     output = io.BytesIO()
     wb.save(output)
     output.seek(0)
@@ -238,4 +266,5 @@ def exportar_produtos_xlsx():
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    debug_mode = os.environ.get('FLASK_DEBUG', 'false').lower() == 'true'
+    app.run(debug=debug_mode)
